@@ -1,0 +1,19 @@
+[Unit]
+Description=Media DL Telegram Bot
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/media_dl_bot
+Environment=PYTHONPATH=/opt/media_dl_bot
+EnvironmentFile=/opt/media_dl_bot/.env
+ExecStart=/opt/media_dl_bot/venv/bin/python -m bot.main
+ExecStop=/bin/kill -SIGTERM $MAINPID
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
