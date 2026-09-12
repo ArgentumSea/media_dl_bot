@@ -27,7 +27,6 @@ async def handle_photo(message: types.Message):
         ext = file.file_path.split(".")[-1]
         tmp_path = os.path.join(tempfile.gettempdir(), f"{photo.file_id}.{ext}")
         await message.bot.download_file(file.file_path, tmp_path)
-
         analysis = await gemini.analyze(file_path=tmp_path, mime_type="image/jpeg")
         await status_msg.delete()
         await send_split_message(message, analysis)
@@ -50,7 +49,6 @@ async def handle_video(message: types.Message):
         ext = video.mime_type.split("/")[-1] if video.mime_type else "mp4"
         tmp_path = os.path.join(tempfile.gettempdir(), f"{video.file_id}.{ext}")
         await message.bot.download_file(file.file_path, tmp_path)
-
         analysis = await gemini.analyze(file_path=tmp_path, mime_type=video.mime_type or "video/mp4")
         await status_msg.delete()
         await send_split_message(message, analysis)
@@ -73,7 +71,6 @@ async def handle_audio(message: types.Message):
         ext = audio.mime_type.split("/")[-1] if audio.mime_type else "mp3"
         tmp_path = os.path.join(tempfile.gettempdir(), f"{audio.file_id}.{ext}")
         await message.bot.download_file(file.file_path, tmp_path)
-
         analysis = await gemini.analyze(file_path=tmp_path, mime_type=audio.mime_type or "audio/mpeg")
         await status_msg.delete()
         await send_split_message(message, analysis)
@@ -97,30 +94,23 @@ async def handle_voice(message: types.Message):
         ogg_path = os.path.join(tempfile.gettempdir(), f"{voice.file_id}.ogg")
         wav_path = os.path.join(tempfile.gettempdir(), f"{voice.file_id}.wav")
         await message.bot.download_file(file.file_path, ogg_path)
-
         ret = await asyncio.to_thread(
             os.system,
             f"ffmpeg -i {ogg_path} -ar 16000 -ac 1 -f wav {wav_path} -y -loglevel error"
         )
         if ret != 0:
             raise RuntimeError("ffmpeg conversion failed")
-
         if VOSK:
             text = await asyncio.to_thread(VOSK.transcribe, wav_path)
             await status_msg.edit_text("Анализирую информацию...")
             analysis = await gemini.analyze(text=text)
             await status_msg.delete()
-            await send_split_message(message, f"<b>Распознанный текст:</b>
-{text}
-
-<b>Анализ:</b>
-{analysis}")
+            await send_split_message(message, "Распознанный текст:\n" + text + "\n\nАнализ:\n" + analysis)
         else:
             await status_msg.edit_text("Анализирую информацию...")
             analysis = await gemini.analyze(file_path=wav_path, mime_type="audio/wav")
             await status_msg.delete()
             await send_split_message(message, analysis)
-
         await log_request(message.from_user.id, "voice", "success")
     except Exception as e:
         logger.error("Voice processing error", error=str(e))
@@ -141,7 +131,6 @@ async def handle_document(message: types.Message):
         ext = doc.file_name.split(".")[-1] if doc.file_name else "bin"
         tmp_path = os.path.join(tempfile.gettempdir(), f"{doc.file_id}.{ext}")
         await message.bot.download_file(file.file_path, tmp_path)
-
         mime = doc.mime_type or "application/octet-stream"
         analysis = await gemini.analyze(file_path=tmp_path, mime_type=mime)
         await status_msg.delete()

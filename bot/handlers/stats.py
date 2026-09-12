@@ -14,7 +14,6 @@ async def cmd_stat(message: types.Message, user_role: str = "user"):
     if not is_admin_or_assistant(user_role):
         await message.answer("Отказ — нет прав.")
         return
-
     pool = await get_pool()
     async with pool.acquire() as conn:
         rows = await conn.fetch("""
@@ -27,14 +26,10 @@ async def cmd_stat(message: types.Message, user_role: str = "user"):
             GROUP BY u.tg_id
             ORDER BY total DESC
         """)
-
     if not rows:
         await message.answer("Статистика пуста.")
         return
-
     lines = ["user_id — сегодня — всего"]
     for r in rows:
         lines.append(f"{r['tg_id']} — {r['today']} — {r['total']}")
-
-    await message.answer("
-".join(lines))
+    await message.answer("\n".join(lines))

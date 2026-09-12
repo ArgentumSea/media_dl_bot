@@ -22,17 +22,14 @@ async def cmd_admin(message: types.Message, user_role: str = "user"):
     if not is_admin_or_assistant(user_role):
         await message.answer("Отказ — нет прав.")
         return
-
     pool = await get_pool()
     async with pool.acquire() as conn:
         users = await conn.fetch(
             "SELECT tg_id, username, role, created_at FROM users ORDER BY created_at DESC"
         )
-
     if not users:
         await message.answer("Пользователей пока нет.")
         return
-
     lines = []
     buttons = []
     for u in users:
@@ -43,27 +40,21 @@ async def cmd_admin(message: types.Message, user_role: str = "user"):
             text=f"⚙️ {u['tg_id']}",
             callback_data=f"user:{u['tg_id']}"
         )])
-
     kb = InlineKeyboardMarkup(inline_keyboard=buttons)
-    await message.answer("
-".join(lines), reply_markup=kb)
+    await message.answer("\n".join(lines), reply_markup=kb)
 
 @router.callback_query(F.data.startswith("user:"))
 async def on_user_select(callback: types.CallbackQuery, user_role: str = "user"):
     target_id = int(callback.data.split(":")[1])
-
     pool = await get_pool()
     async with pool.acquire() as conn:
         target = await conn.fetchrow("SELECT role FROM users WHERE tg_id = $1", target_id)
-
     if not target:
         await callback.answer("Пользователь не найден.")
         return
-
     if not can_manage(user_role, target["role"]):
         await callback.answer("Отказ — нет прав.")
         return
-
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="Назначить ассистентом", callback_data=f"promote:{target_id}")],
         [InlineKeyboardButton(text="Разжаловать", callback_data=f"demote:{target_id}")],
@@ -80,7 +71,6 @@ async def on_promote(callback: types.CallbackQuery, user_role: str = "user"):
     if user_role != "admin":
         await callback.answer("Отказ — нет прав.")
         return
-
     pool = await get_pool()
     async with pool.acquire() as conn:
         await conn.execute("UPDATE users SET role = 'assistant' WHERE tg_id = $1", target_id)
@@ -93,7 +83,6 @@ async def on_demote(callback: types.CallbackQuery, user_role: str = "user"):
     if user_role != "admin":
         await callback.answer("Отказ — нет прав.")
         return
-
     pool = await get_pool()
     async with pool.acquire() as conn:
         await conn.execute("UPDATE users SET role = 'user' WHERE tg_id = $1", target_id)
@@ -106,7 +95,6 @@ async def on_block(callback: types.CallbackQuery, user_role: str = "user"):
     if not can_manage(user_role, "user"):
         await callback.answer("Отказ — нет прав.")
         return
-
     pool = await get_pool()
     async with pool.acquire() as conn:
         target = await conn.fetchrow("SELECT role FROM users WHERE tg_id = $1", target_id)
@@ -122,7 +110,6 @@ async def on_unblock(callback: types.CallbackQuery, user_role: str = "user"):
     if not can_manage(user_role, "user"):
         await callback.answer("Отказ — нет прав.")
         return
-
     pool = await get_pool()
     async with pool.acquire() as conn:
         target = await conn.fetchrow("SELECT role FROM users WHERE tg_id = $1", target_id)
@@ -138,7 +125,6 @@ async def on_delete(callback: types.CallbackQuery, user_role: str = "user"):
     if not can_manage(user_role, "user"):
         await callback.answer("Отказ — нет прав.")
         return
-
     pool = await get_pool()
     async with pool.acquire() as conn:
         target = await conn.fetchrow("SELECT role FROM users WHERE tg_id = $1", target_id)

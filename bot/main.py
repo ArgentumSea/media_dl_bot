@@ -3,7 +3,8 @@ import logging
 import signal
 from aiohttp import web
 from aiogram import Bot, Dispatcher
-from aiogram.enums import ParseMode
+from aiogram.client.default import DefaultBotProperties
+from aiogram.types import BotCommand
 from bot.config import BOT_TOKEN, LOG_LEVEL
 from bot.database import migrate, close_pool
 from bot.handlers import common, content, media, admin, stats
@@ -44,18 +45,30 @@ async def start_health_server():
     await site.start()
     return runner
 
+async def set_bot_commands(bot: Bot):
+    commands = [
+        BotCommand(command="start", description="Запуск бота"),
+        BotCommand(command="help", description="Помощь"),
+        BotCommand(command="admin", description="Панель управления"),
+        BotCommand(command="stat", description="Статистика"),
+    ]
+    await bot.set_my_commands(commands)
+
 async def main():
     global _shutting_down
     setup_logging()
     logger = structlog.get_logger()
     logger.info("Starting bot")
-
+    
     await migrate()
     runner = await start_health_server()
-
-    bot = Bot(token=BOT_TOKEN, parse_mode=ParseMode.HTML)
+    
+    bot = Bot(
+        token=BOT_TOKEN,
+        default=DefaultBotProperties(parse_mode="HTML")
+    )
     dp = Dispatcher()
-
+    
     dp.message.middleware(AuthMiddleware())
     dp.callback_query.middleware(AuthMiddleware())
     dp.include_router(common.router)
@@ -63,7 +76,9 @@ async def main():
     dp.include_router(media.router)
     dp.include_router(admin.router)
     dp.include_router(stats.router)
-
+    
+    await set_bot_commands(bot)
+    
     async def shutdown():
         global _shutting_down
         if _shutting_down:
@@ -73,11 +88,11 @@ async def main():
         await close_pool()
         await runner.cleanup()
         await bot.session.close()
-
+    
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGTERM, signal.SIGINT):
         loop.add_signal_handler(sig, lambda: asyncio.create_task(shutdown()))
-
+    
     try:
         await dp.start_polling(bot)
     finally:
