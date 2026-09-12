@@ -17,6 +17,9 @@ def can_manage(actor_role: str, target_role: str) -> bool:
         return target_role == "user"
     return False
 
+def display_name(username, tg_id):
+    return f"@{username}" if username else str(tg_id)
+
 @router.message(Command("admin"))
 async def cmd_admin(message: types.Message, user_role: str = "user"):
     if not is_admin_or_assistant(user_role):
@@ -34,10 +37,11 @@ async def cmd_admin(message: types.Message, user_role: str = "user"):
     buttons = []
     for u in users:
         role_label = "Администратор" if u["role"] == "admin" else "Ассистент" if u["role"] == "assistant" else "Пользователь"
-        line = f"{u['tg_id']} — {role_label} — {u['created_at'].strftime('%Y-%m-%d')}"
+        name = display_name(u["username"], u["tg_id"])
+        line = f"{name} — {role_label} — {u['created_at'].strftime('%Y-%m-%d')}"
         lines.append(line)
         buttons.append([InlineKeyboardButton(
-            text=f"⚙️ {u['tg_id']}",
+            text=f"⚙️ {name}",
             callback_data=f"user:{u['tg_id']}"
         )])
     kb = InlineKeyboardMarkup(inline_keyboard=buttons)
@@ -48,13 +52,14 @@ async def on_user_select(callback: types.CallbackQuery, user_role: str = "user")
     target_id = int(callback.data.split(":")[1])
     pool = await get_pool()
     async with pool.acquire() as conn:
-        target = await conn.fetchrow("SELECT role FROM users WHERE tg_id = $1", target_id)
+        target = await conn.fetchrow("SELECT role, username, tg_id FROM users WHERE tg_id = $1", target_id)
     if not target:
         await callback.answer("Пользователь не найден.")
         return
     if not can_manage(user_role, target["role"]):
         await callback.answer("Отказ — нет прав.")
         return
+    name = display_name(target["username"], target["tg_id"])
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="Назначить ассистентом", callback_data=f"promote:{target_id}")],
         [InlineKeyboardButton(text="Разжаловать", callback_data=f"demote:{target_id}")],
@@ -62,7 +67,7 @@ async def on_user_select(callback: types.CallbackQuery, user_role: str = "user")
         [InlineKeyboardButton(text="Разблокировать", callback_data=f"unblock:{target_id}")],
         [InlineKeyboardButton(text="Удалить", callback_data=f"delete:{target_id}")]
     ])
-    await callback.message.edit_reply_markup(reply_markup=kb)
+    await callback.message.edit_text(f"Управление: {name}", reply_markup=kb)
     await callback.answer()
 
 @router.callback_query(F.data.startswith("promote:"))

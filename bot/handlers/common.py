@@ -37,6 +37,12 @@ async def cmd_start(message: types.Message):
                         admin_id=admin["tg_id"],
                         error=str(e)
                     )
+        else:
+            await conn.execute(
+                "UPDATE users SET username = $1 WHERE tg_id = $2",
+                message.from_user.username,
+                message.from_user.id
+            )
 
     text = (
         "Привет! Я бот для анализа медиаконтента.\n"
