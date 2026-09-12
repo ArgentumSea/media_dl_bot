@@ -2,7 +2,7 @@
 set -e
 
 PROJECT_DIR="/opt/media_dl_bot"
-REPO_URL="https://github.com/ArgentumSea/media_dl_bot.git"
+REPO_URL="https://github.com/YOUR_USERNAME/media_dl_bot.git"
 DB_NAME="media_dl_bot"
 DB_USER="bot_user"
 DB_PASS="bot_password"
